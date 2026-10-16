@@ -1,0 +1,102 @@
+/* =========================================================
+   그림 움직임: 토리, 표지, 스티커, 문구머니
+   기기의 <동작 줄이기>를 켜면 모두 멈춥니다(base.css 맨 아래).
+   ========================================================= */
+
+.svg-box { display: inline-block; line-height: 0; }
+.svg-box svg { width: 100%; height: 100%; }
+
+/* ---------- 토리 ---------- */
+.tori-box { line-height: 0; }
+.tori-box svg { width: 100%; height: auto; display: block; overflow: visible; }
+.tori-xs { width: 56px; }
+.tori-sm { width: 92px; }
+.tori-md { width: 140px; }
+.tori-lg { width: 190px; }
+.tori-xl { width: min(260px, 62vw); }
+
+.tori .t-all { transform-origin: 110px 250px; animation: tori-breathe 4.2s ease-in-out infinite; }
+.tori .t-eyes { transform-origin: 110px 100px; animation: tori-blink 5.6s ease-in-out infinite; }
+.tori.no-blink .t-eyes { animation: none; }
+.tori .t-wave { transform-origin: 154px 168px; animation: tori-wave 1.4s ease-in-out 3; }
+.tori .t-cheer-l { transform-origin: 66px 168px; animation: tori-cheer-l 0.9s ease-in-out 2; }
+.tori .t-cheer-r { transform-origin: 154px 168px; animation: tori-cheer-r 0.9s ease-in-out 2; }
+.tori .t-note { animation: note-float 3.2s ease-in-out infinite; }
+.tori .t-note.n2 { animation-delay: -1.6s; }
+.tori .t-sparkle path { transform-box: fill-box; transform-origin: center; animation: twinkle 1.8s ease-in-out infinite; }
+.tori .t-sparkle path:nth-child(2) { animation-delay: -0.6s; }
+.tori .t-sparkle path:nth-child(3) { animation-delay: -1.2s; }
+.tori .t-zzz .z1 { animation: zzz 3s ease-in-out infinite; }
+.tori .t-zzz .z2 { animation: zzz 3s ease-in-out infinite -1.5s; }
+.tori-listen .t-head { transform-origin: 110px 160px; animation: tori-sway 3.4s ease-in-out infinite; }
+
+@keyframes tori-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.006, 1.014); } }
+@keyframes tori-blink { 0%, 91%, 97%, 100% { transform: scaleY(1); } 94% { transform: scaleY(0.12); } }
+@keyframes tori-wave { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(16deg); } }
+@keyframes tori-cheer-l { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-10deg); } }
+@keyframes tori-cheer-r { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(10deg); } }
+@keyframes note-float { 0% { transform: translate(0, 6px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translate(8px, -14px); opacity: 0; } }
+@keyframes twinkle { 0%, 100% { transform: scale(0.7); opacity: 0.6; } 50% { transform: scale(1.1); opacity: 1; } }
+@keyframes zzz { 0% { transform: translate(0, 4px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(6px, -10px); opacity: 0; } }
+@keyframes tori-sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+
+/* ---------- 표지 ---------- */
+.cover-art { display: block; width: 100%; height: 100%; }
+.cover-anim .ff { animation: firefly 9s ease-in-out infinite; }
+.cover-anim .ff1 { animation-duration: 11s; }
+.cover-anim .ff2 { animation-duration: 13s; }
+.cover-anim .ff3 { animation-duration: 15s; }
+.cover-anim .bb { animation: bubble-rise 16s linear infinite; }
+.cover-anim .bb1 { animation-duration: 20s; }
+.cover-anim .bb2 { animation-duration: 24s; }
+.cover-anim .anim-float { animation: float-y 8s ease-in-out infinite; }
+
+@keyframes firefly {
+  0%, 100% { transform: translate(0, 0); opacity: 0.3; }
+  25% { transform: translate(14px, -10px); opacity: 1; }
+  50% { transform: translate(24px, 4px); opacity: 0.5; }
+  75% { transform: translate(8px, 12px); opacity: 1; }
+}
+@keyframes bubble-rise {
+  0% { transform: translate(0, 60px); opacity: 0; }
+  10% { opacity: 1; }
+  50% { transform: translate(12px, -60px); }
+  90% { opacity: 1; }
+  100% { transform: translate(-6px, -180px); opacity: 0; }
+}
+@keyframes float-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+/* ---------- 스티커 (하얀 테두리로 오려 낸 느낌) ---------- */
+.sticker {
+  display: inline-block;
+  line-height: 0;
+  filter:
+    drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff)
+    drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff)
+    drop-shadow(0 3px 4px rgba(37, 48, 74, 0.25));
+}
+.sticker svg { width: 100%; height: 100%; display: block; }
+.sticker.shine svg { animation: shine 3.2s ease-in-out infinite; }
+@keyframes shine { 0%, 100% { filter: brightness(1) saturate(1); } 50% { filter: brightness(1.18) saturate(1.25); } }
+
+/* 붙이는 순간 */
+.pop-in { animation: pop-in 0.32s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes pop-in { from { transform: scale(0.3) rotate(-12deg); opacity: 0; } }
+
+/* ---------- 문구머니 ---------- */
+.coin-hop { animation: coin-hop 0.7s cubic-bezier(.3, 1.6, .5, 1) 1; }
+@keyframes coin-hop { 0% { transform: translateY(0) scale(1); } 40% { transform: translateY(-22px) scale(1.12); } 100% { transform: translateY(0) scale(1); } }
+.reward-in { animation: reward-in 0.45s cubic-bezier(.2, 1.2, .4, 1) both; }
+@keyframes reward-in { from { transform: translateY(18px) scale(0.96); opacity: 0; } }
+
+/* 별 도장 */
+.stamp { animation: stamp 0.4s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes stamp { from { transform: scale(2) rotate(-20deg); opacity: 0; } }
+
+/* 말풍선 나타나기 */
+.bubble-in { animation: bubble-in 0.28s ease both; }
+@keyframes bubble-in { from { transform: translateY(6px); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .tori *, .cover-anim *, .sticker svg { animation: none !important; }
+}

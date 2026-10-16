@@ -1,0 +1,150 @@
+/* =========================================================
+   디자인 토큰 (색, 글꼴, 크기)
+   - 색을 바꾸고 싶으면 여기 값만 바꾸면 앱 전체가 바뀝니다.
+   - 밝은 화면 값은 :root, 어두운 화면 값은 아래 두 블록(같은 값)에 있습니다.
+   - 설명은 docs/DESIGN.md 3절.
+   ========================================================= */
+
+:root {
+  /* 바탕과 종이 */
+  --bg: #EAF0F8;          /* 옅은 하늘빛: 하얀 토리가 돋보이게 */
+  --bg-deep: #DCE6F3;
+  --paper: #FFFDF8;       /* 일기 쓰는 종이 */
+  --paper-line: #E3E9F3;  /* 줄 공책 줄 */
+  --card: #FFFFFF;
+  --veil: rgba(37, 48, 74, 0.38); /* 창 뒤를 가리는 막 */
+
+  /* 글자 */
+  --ink: #25304A;         /* 남색 잉크 */
+  --ink-2: #56607A;
+  --ink-3: #5F6880;       /* 칸 안 안내 글자 (밝은 바탕에서 대비 4.5:1 이상) */
+
+  /* 선 */
+  --line: #D3DBE8;
+  --seam: #B9C5DA;        /* 인형 솔기 같은 바느질 점선 */
+
+  /* 강조 */
+  --primary: #2F4A7A;     /* 사진 속 남색 책 */
+  --primary-press: #233A62;
+  --on-primary: #FFF9F0;
+  --blush: #F2A19B;       /* 토리 볼 */
+  --blush-ink: #B24F49;   /* 분홍 바탕 위 글자 */
+  --blush-soft: #FDE6E3;
+  --wood: #C48F5E;        /* 책장 */
+  --wood-deep: #9C6B3F;
+  --wood-soft: #F3E6D8;
+  --coin: #F4C24F;        /* 문구머니 */
+  --coin-deep: #C98A12;
+  --mint: #3E8F70;        /* 완료 표시 */
+  --mint-ink: #2C6E55;    /* 초록 글자 */
+  --mint-soft: #DFF3EA;
+  --focus: #4C7FE6;
+
+  /* 토리 (그림 색은 화면 모드와 상관없이 거의 같음) */
+  --tori-fur: #FFFFFF;
+  --tori-shade: #E9E3DA;
+  --tori-line: #D2CABE;
+  --tori-ink: #1F1B1A;
+  --tori-cheek: #F4A7A3;
+  --tori-phone: #F6F4F0;
+  --tori-phone-shade: #DCD5CA;
+
+  /* 그림자 (폭신한 느낌) */
+  --shadow-1: 0 1px 2px rgba(37, 48, 74, 0.06), 0 4px 14px rgba(37, 48, 74, 0.08);
+  --shadow-2: 0 2px 6px rgba(37, 48, 74, 0.08), 0 12px 32px rgba(37, 48, 74, 0.14);
+
+  /* 글꼴 */
+  --font-ui: 'Jua', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', system-ui, sans-serif;
+  --font-body: 'Gowun Dodum', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', system-ui, sans-serif;
+
+  /* 크기 */
+  --text-ui: 18px;
+  --text-small: 15px;
+  --text-write: 25px;     /* 쓰기 글자: 설정에서 19 / 22 / 25 */
+  --leading-write: 1.75;  /* 줄 간격: 1.75 / 2.0 */
+  --radius-lg: 24px;
+  --radius-md: 18px;
+  --radius-sm: 14px;
+  --tap: 48px;            /* 모든 단추 최소 높이 */
+  --tap-big: 64px;        /* 주 단추 높이 */
+  --gutter: 16px;
+  --content: 680px;       /* 가운데 내용 최대 너비 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141A2B;
+    --bg-deep: #1A2236;
+    --paper: #1F2740;
+    --paper-line: #2C3653;
+    --card: #222B44;
+    --veil: rgba(5, 8, 16, 0.6);
+    --ink: #EEF1F8;
+    --ink-2: #B8C0D6;
+    --ink-3: #8D96AE;
+    --line: #343F5C;
+    --seam: #46527A;
+    --primary: #9DB8F2;
+    --primary-press: #B6CBF6;
+    --on-primary: #111827;
+    --blush: #F2A19B;
+    --blush-ink: #F6B8B3;
+    --blush-soft: #3A2A33;
+    --wood: #B9875A;
+    --wood-deep: #8E6440;
+    --wood-soft: #33291F;
+    --coin: #F4C24F;
+    --coin-deep: #F4C24F;
+    --mint: #7CD3B0;
+    --mint-ink: #7CD3B0;
+    --mint-soft: #1F3A31;
+    --focus: #8FB3FF;
+    --tori-fur: #F7F5F1;
+    --tori-shade: #DCD5CA;
+    --tori-line: #BDB4A7;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.3);
+    --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.45);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #141A2B;
+  --bg-deep: #1A2236;
+  --paper: #1F2740;
+  --paper-line: #2C3653;
+  --card: #222B44;
+  --veil: rgba(5, 8, 16, 0.6);
+  --ink: #EEF1F8;
+  --ink-2: #B8C0D6;
+  --ink-3: #8D96AE;
+  --line: #343F5C;
+  --seam: #46527A;
+  --primary: #9DB8F2;
+  --primary-press: #B6CBF6;
+  --on-primary: #111827;
+  --blush: #F2A19B;
+  --blush-ink: #F6B8B3;
+  --blush-soft: #3A2A33;
+  --wood: #B9875A;
+  --wood-deep: #8E6440;
+  --wood-soft: #33291F;
+  --coin: #F4C24F;
+  --coin-deep: #F4C24F;
+  --mint: #7CD3B0;
+  --mint-ink: #7CD3B0;
+  --mint-soft: #1F3A31;
+  --focus: #8FB3FF;
+  --tori-fur: #F7F5F1;
+  --tori-shade: #DCD5CA;
+  --tori-line: #BDB4A7;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+
+/* 쓰기 글자 크기 3단계 (설정 화면에서 바꿈) */
+:root[data-write-size="S"] { --text-write: 19px; }
+:root[data-write-size="M"] { --text-write: 22px; }
+:root[data-write-size="L"] { --text-write: 25px; }
+:root[data-leading="wide"] { --leading-write: 2.0; }

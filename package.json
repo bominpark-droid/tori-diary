@@ -1,0 +1,10 @@
+{
+  "name": "tori-diary",
+  "private": true,
+  "type": "module",
+  "description": "토리 일기장: 초등학생 일기 습관 웹앱 (설치 없이 GitHub Pages에서 돌아감)",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "serve": "python3 -m http.server 8080"
+  }
+}

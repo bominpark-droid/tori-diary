@@ -1,0 +1,133 @@
+// 여러 화면에서 같이 쓰는 조각: 음악 단추, 이번 주 점, 일기 쪽 그리기, 스티커, 이름 부르기
+
+import { h, svg, won } from '../util.js';
+import { store } from '../store.js';
+import { icon, ICONS, WEATHER_ICONS, coinSVG } from '../ui.js';
+import { music } from '../music.js';
+import { weekDays, dayKey, shortDay, koreanDate } from '../dates.js';
+import { coverSVG } from '../art/covers.js';
+import { stickerSVG, stickerMeta } from '../art/stickers.js';
+import { FRAMES } from '../art/covers.js';
+import { fontStyle } from '../data/fonts.js';
+import { callName, softName } from '../josa.js';
+import { WEATHER } from '../data/plan.js';
+
+// 이름 부르기 값들 (토리 대사 채우기용)
+export function nameVars() {
+  const n = store.state.profile.name;
+  return { name: callName(n), soft: softName(n), nameComma: n ? `, ${callName(n)}` : '' };
+}
+
+// 헤드폰 단추: 음악 켜기와 끄기
+export function musicButton() {
+  const on = () => store.state.settings.music;
+  const b = h('button', { class: 'btn-icon music-btn', type: 'button' });
+  const paint = () => {
+    b.innerHTML = on() ? ICONS.phones : ICONS.phonesOff;
+    b.setAttribute('aria-label', on() ? '음악 끄기' : '음악 켜기');
+    b.setAttribute('aria-pressed', on() ? 'true' : 'false');
+  };
+  b.addEventListener('click', () => {
+    store.update((s) => { s.settings.music = !s.settings.music; });
+    music.unlock();
+    paint();
+  });
+  paint();
+  return b;
+}
+
+// 이번 주 월~일 점 7개 (연속 기록이나 깨짐 표시는 없음)
+export function weekDots(today = dayKey()) {
+  const days = weekDays(today);
+  const written = new Set(store.state.diaries.map((d) => d.day));
+  const count = days.filter((d) => written.has(d)).length;
+  return {
+    count,
+    el: h('div', { class: 'week', role: 'img', 'aria-label': `이번 주에 일기를 쓴 날 ${count}일` },
+      days.map((d) => h('div', { class: ['week-day', d === today ? 'today' : null] },
+        h('span', { class: ['week-dot', written.has(d) ? 'on' : null] }, written.has(d) ? svg(ICONS.check) : null),
+        h('span', { class: 'week-label' }, shortDay(d))))),
+  };
+}
+
+export function stickerNode(id, size = 72, extra) {
+  const m = stickerMeta(id);
+  const el = h('span', { class: ['sticker', m && m.shine ? 'shine' : null, m && m.big ? 'big' : null, extra], style: { width: `${size}px`, height: `${m && m.big ? Math.round(size * 1.36) : size}px` }, role: 'img', 'aria-label': m ? m.name : '스티커' });
+  el.innerHTML = stickerSVG(id);
+  return el;
+}
+
+export function weatherIcon(id) {
+  const w = WEATHER.find((x) => x.id === id);
+  if (!w) return null;
+  return h('span', { class: 'weather-ico', role: 'img', 'aria-label': `날씨 ${w.label}`, html: WEATHER_ICONS[id] });
+}
+
+// 일기 한 쪽 (일기장 읽기, 꾸미기 미리보기)
+// opts: { excerpt: 글 앞부분만, slots: 스티커 자리를 누를 수 있게 onSlot(i), bookmark: 책갈피 표시 }
+export function diaryPage(d, opts = {}) {
+  const plain = store.state.settings.plainFonts;
+  const frame = d.frame && FRAMES[d.frame] ? d.frame : null;
+  const strip = h('div', { class: 'page-cover', html: coverSVG(d.cover, '') });
+  const title = h('h2', { class: 'page-title', style: fontStyle(d.font, plain) }, d.title || '오늘의 일기');
+  const meta = h('div', { class: 'page-meta' }, h('span', null, koreanDate(d.day)), weatherIcon(d.weather));
+  let body;
+  if (opts.excerpt) {
+    const t = d.text || '';
+    body = h('p', { class: 'page-text' }, t.length > 90 ? `${t.slice(0, 90)}…` : t);
+  } else {
+    body = h('div', { class: 'page-text' }, paragraphs(d.text, opts.bookmark !== false ? d.bookmark : null));
+  }
+  const slots = h('div', { class: 'page-stickers' });
+  for (let i = 0; i < 4; i++) {
+    const st = (d.stickers || []).find((x) => x.slot === i);
+    const cell = h(opts.onSlot ? 'button' : 'div', {
+      class: ['sticker-slot', st ? 'filled' : null],
+      type: opts.onSlot ? 'button' : undefined,
+      'aria-label': st ? `${(stickerMeta(st.id) || {}).name || '스티커'} 떼기` : `스티커 자리 ${i + 1}`,
+      on: opts.onSlot ? { click: () => opts.onSlot(i) } : undefined,
+    }, st ? stickerNode(st.id, 60, opts.popSlot === i ? 'pop-in' : null) : null);
+    if (!st && !opts.onSlot) cell.classList.add('empty');
+    slots.appendChild(cell);
+  }
+  const hasSticker = (d.stickers || []).length > 0;
+  return h('article', { class: ['page', frame ? `frame-${frame}` : null], 'aria-label': `${koreanDate(d.day)} 일기` },
+    strip,
+    h('div', { class: 'page-in' }, meta, title, (opts.onSlot || hasSticker) ? slots : null, body, opts.after || null));
+}
+
+// 글을 문단으로. 책갈피 문장에는 표시
+function paragraphs(text, bookmark) {
+  const parts = String(text || '').split(/\n+/);
+  return parts.map((p) => {
+    if (bookmark && bookmark.s && p.includes(bookmark.s)) {
+      const [a, ...rest] = p.split(bookmark.s);
+      return h('p', null, a, h('mark', { class: 'bookmark', title: '토리가 책갈피를 꽂은 문장' }, bookmark.s), rest.join(bookmark.s));
+    }
+    return h('p', null, p);
+  });
+}
+
+// 나란히 보기: diffWords 결과를 처음 글(left)과 고친 글(right)로 나눔
+export function diffSides(tokens) {
+  return {
+    left: tokens.filter((t) => t.type !== 'add').map((t) => (t.type === 'del' && !t.ws ? h('del', null, t.t) : t.t)),
+    right: tokens.filter((t) => t.type !== 'del').map((t) => (t.type === 'add' && !t.ws ? h('mark', { class: 'add' }, t.t) : t.t)),
+  };
+}
+
+// 문구머니 카드 (일기 완성, 다듬기 보너스)
+export function rewardCard({ title, amount, note }) {
+  return h('div', { class: 'reward-card reward-in', role: 'status' },
+    h('span', { class: 'reward-coin', html: coinSVG() }),
+    h('div', { class: 'grow' }, h('div', { class: 'reward-title ui' }, title), note ? h('div', { class: 'muted small' }, note) : null),
+    amount ? h('div', { class: 'reward-amount ui' }, `+${won(amount)}`) : null);
+}
+
+// 위쪽 작은 제목 줄
+export function topBar(title, { back, right } = {}) {
+  return h('div', { class: 'topbar wrap' },
+    back ? h('a', { class: 'btn-icon', href: back, 'aria-label': '뒤로' }, icon('back')) : null,
+    h('h1', { class: 'grow topbar-title' }, title),
+    right || null);
+}
