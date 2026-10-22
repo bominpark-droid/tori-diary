@@ -8,8 +8,9 @@ import { weekDays, dayKey, shortDay, koreanDate } from '../dates.js';
 import { coverSVG } from '../art/covers.js';
 import { stickerSVG, stickerMeta } from '../art/stickers.js';
 import { FRAMES } from '../art/covers.js';
-import { fontStyle } from '../data/fonts.js';
+import { fontStyle, pageFont } from '../data/fonts.js';
 import { giftInfo } from '../gifts.js';
+import { stickerLayer } from '../sticker-layer.js';
 import { callName, softName } from '../josa.js';
 import { WEATHER } from '../data/plan.js';
 
@@ -64,37 +65,20 @@ export function weatherIcon(id) {
   return h('span', { class: 'weather-ico', role: 'img', 'aria-label': `날씨 ${w.label}`, html: WEATHER_ICONS[id] });
 }
 
-// 일기 한 쪽 (일기장 읽기, 꾸미기 미리보기)
-// opts: { excerpt: 글 앞부분만, slots: 스티커 자리를 누를 수 있게 onSlot(i), bookmark: 책갈피 표시 }
+// 일기 한 쪽 (일기장 읽기, 꾸미기)
+// 배경(표지 그림)이 쪽 전체에 깔리고, 글은 그 위의 종이 칸에 놓이고, 스티커는 쪽 어디에나 얹힙니다.
+// opts: { after: 글 아래에 더할 것(사진), bookmark: 책갈피 표시(기본 켬), edit: 스티커를 끌 수 있게(js/sticker-layer.js) }
 export function diaryPage(d, opts = {}) {
   const plain = store.state.settings.plainFonts;
   const frame = d.frame && FRAMES[d.frame] ? d.frame : null;
-  const strip = h('div', { class: 'page-cover', html: coverSVG(d.cover, '') });
-  const title = h('h2', { class: 'page-title', style: fontStyle(d.font, plain) }, d.title || '오늘의 일기');
+  const bg = h('div', { class: 'page-bg', html: coverSVG(d.cover, '') });
+  const title = h('h2', { class: 'page-title', style: pageFont(d.font, { plain }) }, d.title || '오늘의 일기');
   const meta = h('div', { class: 'page-meta' }, h('span', null, koreanDate(d.day)), weatherIcon(d.weather));
-  let body;
-  if (opts.excerpt) {
-    const t = d.text || '';
-    body = h('p', { class: 'page-text' }, t.length > 90 ? `${t.slice(0, 90)}…` : t);
-  } else {
-    body = h('div', { class: 'page-text' }, paragraphs(d.text, opts.bookmark !== false ? d.bookmark : null));
-  }
-  const slots = h('div', { class: 'page-stickers' });
-  for (let i = 0; i < 4; i++) {
-    const st = (d.stickers || []).find((x) => x.slot === i);
-    const cell = h(opts.onSlot ? 'button' : 'div', {
-      class: ['sticker-slot', st ? 'filled' : null],
-      type: opts.onSlot ? 'button' : undefined,
-      'aria-label': st ? `${(stickerMeta(st.id) || {}).name || '스티커'} 떼기` : `스티커 자리 ${i + 1}`,
-      on: opts.onSlot ? { click: () => opts.onSlot(i) } : undefined,
-    }, st ? stickerNode(st.id, 60, opts.popSlot === i ? 'pop-in' : null) : null);
-    if (!st && !opts.onSlot) cell.classList.add('empty');
-    slots.appendChild(cell);
-  }
-  const hasSticker = (d.stickers || []).length > 0;
+  const body = h('div', { class: 'page-text', style: pageFont(d.font, { plain, body: true }) }, paragraphs(d.text, opts.bookmark !== false ? d.bookmark : null));
   return h('article', { class: ['page', frame ? `frame-${frame}` : null], 'aria-label': `${koreanDate(d.day)} 일기` },
-    strip,
-    h('div', { class: 'page-in' }, meta, title, (opts.onSlot || hasSticker) ? slots : null, body, opts.after || null));
+    bg,
+    h('div', { class: 'page-in' }, meta, title, body, opts.after || null),
+    stickerLayer(d.stickers, opts.edit));
 }
 
 // 글을 문단으로. 책갈피 문장에는 표시

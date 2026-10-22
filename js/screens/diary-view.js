@@ -1,5 +1,5 @@
 // 일기 읽기. docs/DESIGN.md 4.4
-// 처음 글이랑 나란히 보기, 가족에게 보여 주기, 다시 고치기(용돈 없음), 지우기.
+// 처음 글이랑 나란히 보기, 꾸미기(스티커, 배경, 글씨), 가족에게 보여 주기, 다시 고치기(용돈 없음), 지우기.
 // /diary/:id/reread 는 이번 주 되돌아보기에서 연 경우(다 읽고 스티커 하나 고르기).
 
 import { h, svg, put } from '../util.js';
@@ -97,6 +97,7 @@ export function render(root, params, app) {
 
   // 할 수 있는 것
   const actions = h('section', { class: 'stack-sm diary-actions' });
+  actions.appendChild(h('a', { class: 'btn btn-primary', href: `#/diary/${d.id}/decorate` }, icon('sparkle'), '꾸미기'));
   if (d.original && d.original.trim() && d.original !== d.text) {
     actions.appendChild(h('button', { class: 'btn btn-soft', type: 'button', on: { click: () => compareSheet(findDiary(d.id)) } }, icon('eye'), '처음 글이랑 나란히 보기'));
   }

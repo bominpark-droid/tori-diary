@@ -22,6 +22,7 @@ const ROUTES = [
   ['/shelf', () => import('./screens/shelf.js')],
   ['/shelf/:mode', () => import('./screens/shelf.js')],
   ['/diary/:id', () => import('./screens/diary-view.js')],
+  ['/diary/:id/decorate', () => import('./screens/write-decorate.js')], // 일기장에서 연 꾸미기(쓰기 흐름 밖)
   ['/diary/:id/:mode', () => import('./screens/diary-view.js')],
   ['/wallet', () => import('./screens/wallet.js')],
   ['/shop', () => import('./screens/wallet.js')], // 문구점이 있던 때의 옛 주소(홈 화면에 붙여 둔 것)
