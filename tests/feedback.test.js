@@ -4,8 +4,9 @@ import assert from 'node:assert/strict';
 import {
   splitSentences, analyze, candidates, pickSuggestion, pickRoundTwo, applyOption, applyOwn,
   isChanged, ownReady, praiseFor, reactionFor, diffWords, findSpelling, detectStyle, quoteOf, endsSentence,
+  planRound, findSuggestion, bonusReady, PLAN_GROUPS, PLAN_SIZE,
 } from '../js/feedback.js';
-import { LINES } from '../js/data/tori-lines.js';
+import { LINES, fill } from '../js/data/tori-lines.js';
 
 const texts = (ss) => ss.map((s) => s.text);
 
@@ -249,4 +250,127 @@ test('찾기: ~서, ~니까 뒤에 기분이 오면 이유를 쓴 것', () => {
   const p = praiseFor('쉬는 시간에 피구를 했다. 공이 너무 빨라서 무서웠다.');
   assert.equal(p.kind, 'reason');
   assert.ok(p.line.includes('‘공이 너무 빨라서 무서웠다’'));
+});
+
+// ---------------------------------------------------------------
+// 1회차 제안 세 가지와 <모두 고치면 보너스> (사용자 결정, 2026-10-22)
+// ---------------------------------------------------------------
+
+const kindsOf = (text, opts = {}, more = {}) => planRound(text, opts, more).map((s) => s.kind);
+const groupOf = (kind) => PLAN_GROUPS.findIndex((g) => g.includes(kind));
+
+test('세 가지 제안: 맥락, 마음, 디테일에서 하나씩 골고루', () => {
+  assert.equal(PLAN_SIZE, 3);
+  assert.deepEqual(kindsOf('피구를 했다. 재밌었다.'), ['add-who', 'add-reason', 'add-talk']);
+  assert.deepEqual(kindsOf('오늘 학교에서 피구를 했다. 재밌었다.'), ['add-who', 'add-reason', 'add-talk']);
+  // 기분이 없으면 기분이 마음 칸을 차지하고, 이유는 남은 자리가 있을 때
+  assert.deepEqual(kindsOf('어제 친구랑 놀이터에서 그네를 탔다.'), ['add-feeling', 'add-talk', 'add-reason']);
+  // 처음 세 칸은 서로 다른 묶음
+  const first = kindsOf('피구를 했다. 재밌었다.');
+  assert.deepEqual(first.map(groupOf), [0, 1, 2]);
+});
+
+test('세 가지 제안: 종류가 겹치지 않고, 세 개를 넘지 않음', () => {
+  for (const t of ['피구를 했다.', '피구를 했다. 재밌었다.', '어제 친구랑 놀이터에서 그네를 탔다.', '오늘 학교에서 친구랑 피구를 했다. 정말 신났다.']) {
+    const ks = kindsOf(t);
+    assert.ok(ks.length >= 1 && ks.length <= 3, `${t} → ${ks.length}개`);
+    assert.equal(new Set(ks).size, ks.length, `${t} 종류 겹침 ${ks}`);
+  }
+});
+
+test('세 가지 제안: 이미 잘 쓴 일기는 모자란 만큼만, 두 번째 종류가 빈자리를 채움', () => {
+  const rich = '오늘 쉬는 시간에 운동장에서 친구랑 피구를 했다. 친구가 “이쪽으로 던져!” 하고 소리쳤다. 공이 쿵 하고 벽에 부딪혔다. 공이 너무 빨라서 무서웠다.';
+  assert.deepEqual(kindsOf(rich), ['add-detail']);
+  // 말과 소리도 있는데 점이 빠진 글: 자세히 한 문장 더 다음에 점 찍기
+  const rich2 = '오늘 학교에서 친구랑 피구를 했다. 친구가 “이쪽으로 던져!” 하고 소리쳤다. 공이 쿵 하고 벽에 부딪혔다. 공이 너무 빨라서 무서웠다 우리 팀이 이겼다.';
+  assert.deepEqual(kindsOf(rich2), ['add-detail', 'punct']);
+});
+
+test('세 가지 제안: 사진 일기는 사진 아래 한 줄 하나', () => {
+  assert.deepEqual(kindsOf('', { isPhoto: true }), ['add-photo-line']);
+});
+
+test('세 가지 제안: 넘긴 종류와 이미 쓴 종류는 빼고 다시 고름', () => {
+  assert.deepEqual(kindsOf('피구를 했다. 재밌었다.', {}, { size: 1, exclude: new Set(['add-who']) }), ['add-where']);
+  assert.deepEqual(kindsOf('피구를 했다. 재밌었다.', {}, { exclude: new Set(['add-who', 'add-reason', 'add-talk']) }), ['add-where', 'add-sense', 'add-when']);
+  const who = candidates('피구를 했다. 재밌었다.').add[0];
+  assert.ok(!kindsOf('피구를 했다. 재밌었다.', {}, { exclude: new Set([who.id]) }).includes('add-who'), 'id로 빼도 됨');
+});
+
+test('디테일 제안: 누가 한 말이나 소리와 모습이 이미 있으면 내지 않음', () => {
+  const plain = candidates('오늘 학교에서 피구를 했다.');
+  assert.deepEqual(plain.detail.map((s) => s.kind), ['add-talk', 'add-sense']);
+  const talk = candidates('친구가 “이쪽으로 던져!” 하고 소리쳤다.');
+  assert.ok(!talk.detail.some((s) => s.kind === 'add-talk'), '말이 있으면 말 제안 없음');
+  const sense = candidates('공이 쿵 하고 벽에 부딪혔다.');
+  assert.ok(!sense.detail.some((s) => s.kind === 'add-sense'), '소리가 있으면 소리 제안 없음');
+  // 디테일 제안은 문장을 붙이는 칸이고 보기 없이 자기 말로 쓰게 함
+  for (const s of plain.detail) {
+    assert.equal(s.options.length, 0);
+    assert.equal(s.own.mode, 'append');
+    assert.ok(s.why && s.say && s.example, `${s.kind} 토리 말`);
+  }
+  // 옛 흐름의 더하기 목록(candidates.add)은 그대로: 디테일은 따로 담김
+  assert.ok(!candidates('피구를 했다.').add.some((s) => s.kind === 'add-talk' || s.kind === 'add-sense'));
+});
+
+test('제안은 차례가 올 때 지금 글에서 다시 찾음: 앞 제안을 고쳐도 위치가 맞음', () => {
+  let text = '피구를 했다. 재밌었다.';
+  const plan = kindsOf(text);
+  const say = {
+    'add-reason': '왜냐하면 공이 빨랐기 때문이다.',
+    'add-talk': '친구가 “이쪽으로 던져!” 하고 소리쳤다.',
+  };
+  for (const kind of plan) {
+    const sug = findSuggestion(text, kind);
+    assert.ok(sug, `${kind}이 지금 글에서 찾아짐`);
+    assert.ok(sug.target && text.slice(sug.target.start, sug.target.end) === sug.target.text, `${kind} 자리가 지금 글과 맞음`);
+    const next = sug.options.length && sug.options[0].type !== 'prefill'
+      ? applyOption(text, sug, sug.options[0])
+      : applyOwn(text, sug, say[kind] || '교실이었다.');
+    assert.ok(isChanged(text, next), `${kind} 고치면 글이 바뀜`);
+    text = next;
+  }
+  // 모두 고친 뒤에는 같은 제안이 다시 나오지 않음
+  assert.equal(findSuggestion(text, 'add-who'), null);
+  assert.equal(findSuggestion(text, 'add-talk'), null);
+});
+
+test('제안 찾기: 넘긴 종류는 다시 찾지 않음', () => {
+  const t = '피구를 했다. 재밌었다.';
+  assert.equal(findSuggestion(t, 'add-who', {}, new Set(['add-who'])), null);
+  assert.equal(findSuggestion(t, 'add-who', {}, new Set()).kind, 'add-who');
+});
+
+test('다듬기 보너스: 제안을 모두 고쳤을 때만 (그대로 둔 것이 하나라도 있으면 없음)', () => {
+  const p = (...st) => st.map((status, i) => ({ kind: `k${i}`, status }));
+  assert.equal(bonusReady([]), false, '제안이 없으면 없음');
+  assert.equal(bonusReady(p('todo', 'todo', 'todo')), false);
+  assert.equal(bonusReady(p('changed', 'changed', 'todo')), false, '남은 제안이 있으면 아직');
+  assert.equal(bonusReady(p('changed', 'changed', 'changed')), true);
+  assert.equal(bonusReady(p('changed', 'kept', 'changed')), false, '하나라도 그대로 두면 없음');
+  assert.equal(bonusReady(p('kept')), false);
+  // <이건 아닌 것 같아>로 넘겨 칸이 닫힌 것(dropped)은 보너스에 영향 없음
+  assert.equal(bonusReady(p('changed', 'dropped', 'changed')), true);
+  assert.equal(bonusReady(p('changed')), true, '제안이 하나뿐인 일기');
+  assert.equal(bonusReady(p('dropped', 'dropped')), false, '고친 것이 하나도 없으면 없음');
+});
+
+test('다시 보기: 표기, 점 찍기, 나누기, 잇기를 먼저, 없으면 더하기형', () => {
+  const t = '오늘 학교에서 친구랑 피구를 했다. 친구가 “이쪽으로 던져!” 하고 소리쳤다. 공이 쿵 하고 벽에 부딪혔다. 공이 너무 빨라서 무서웠다 우리 팀이 이겼다.';
+  assert.equal(pickRoundTwo(t, {}, []).kind, 'punct');
+  assert.equal(pickRoundTwo('피구를 했다. 재밌었다.', {}, ['add-who', 'connect']).kind, 'add-where');
+});
+
+test('토리 말: 세 가지 제안 안내와 보너스 문구', () => {
+  assert.ok(fill(LINES.planLead, { count: '세' }).includes('세 가지'));
+  assert.ok(fill(LINES.planLead, { count: '두' }).includes('두 가지'));
+  assert.ok(!fill(LINES.planLead, { count: '세' }).includes('{'));
+  assert.ok(LINES.bonusInfo.includes('모두'), '보너스 안내에 <모두>');
+  assert.ok(LINES.bonusGot.includes('모두'));
+  // 새 제안마다 이유(why), 하자는 말(say), 고친 뒤 반응이 있고 묻는 말투
+  for (const k of ['add-talk', 'add-sense', 'add-detail']) {
+    assert.ok(LINES.suggest[k].why && LINES.suggest[k].say && LINES.afterChange[k], k);
+    assert.ok(/[?]$/.test(LINES.suggest[k].say), `${k} 제안은 물어보는 말`);
+  }
 });

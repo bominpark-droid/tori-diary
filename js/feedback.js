@@ -4,9 +4,11 @@
 // 큰 흐름
 // 1) splitSentences: 글을 문장으로 나눔 (따옴표 안은 끊지 않음, 점이 없어도 ~다/~요 뒤 띄어쓰기에서 나눔)
 // 2) analyze: 누구, 어디서, 언제, 기분, 이유, 대화, 소리, 순서, 표기 후보를 찾음
-// 3) candidates: 제안 후보를 순서대로 만듦. 더하기형(add)과 두 번째 종류(second)
+// 3) candidates: 제안 후보를 순서대로 만듦. 더하기형(add), 디테일(detail: 말, 소리와 모습), 두 번째 종류(second)
+// 3-1) planRound: 1회차에 보여 줄 제안 3가지를 고름. 맥락(누가, 어디서, 언제) 하나, 마음(기분, 이유) 하나,
+//      디테일(말, 소리와 모습, 한 문장 더) 하나. 부족하면 같은 묶음에서 더 고르고, 그래도 모자라면 두 번째 종류로 채움
 // 4) applyOption / applyOwn: 아이가 고른 대로 글을 바꿈
-// 5) isChanged: 제안 자리에서 글이 바뀌었는지 (다듬기 보너스 판정)
+// 5) isChanged, bonusReady: 제안 자리에서 글이 바뀌었는지, 제안을 모두 고쳤는지 (다듬기 보너스 판정)
 // 찾기가 틀려도 아이 글이 틀리게 되지는 않습니다. 잘못 찾으면 제안이 하나 더 나오거나 덜 나올 뿐입니다.
 
 import {
@@ -448,6 +450,7 @@ export function candidates(text, opts = {}) {
   const ss = withIndex(a.sentences);
   const add = [];
   const second = [];
+  const detail = []; // 말, 소리와 모습 (1회차 세 가지 제안의 디테일 칸에서만 씀)
 
   if (opts.isPhoto) {
     const s = base('add-photo-line', 'add', ss[ss.length - 1] || null);
@@ -457,10 +460,10 @@ export function candidates(text, opts = {}) {
     ];
     s.own = { mode: 'append', prefill: '', placeholder: '사진 아래에 붙일 한 줄' };
     add.push(s);
-    return { add, second, analysis: a };
+    return { add, second, detail, analysis: a };
   }
 
-  if (!ss.length) return { add, second, analysis: a };
+  if (!ss.length) return { add, second, detail, analysis: a };
   const first = ss[0];
   const last = ss[ss.length - 1];
   const mainS = mainSentence(ss, plan) || first;
@@ -491,6 +494,17 @@ export function candidates(text, opts = {}) {
     s.options = [];
     s.own = { mode: 'append', prefill: '', placeholder: '그때 들린 소리, 누가 한 말, 보인 것' };
     add.push(s);
+  }
+  // 디테일: 아무도 말하지 않았으면 누가 한 말, 소리나 모습이 없으면 그것
+  if (!a.dialogue) {
+    const s = base('add-talk', 'add', mainS);
+    s.own = { mode: 'append', prefill: '', placeholder: '그때 누가 뭐라고 했는지' };
+    detail.push(s);
+  }
+  if (!a.sense) {
+    const s = base('add-sense', 'add', mainS);
+    s.own = { mode: 'append', prefill: '', placeholder: '그때 들린 소리나 보인 모습' };
+    detail.push(s);
   }
 
   // 두 번째 종류: 표기 > 점 찍기 > 나누기 > 잇기
@@ -540,7 +554,60 @@ export function candidates(text, opts = {}) {
     s.own = { mode: 'edit', prefill: y.text, placeholder: '' };
     second.push(s);
   }
-  return { add, second, analysis: a };
+  return { add, second, detail, analysis: a };
+}
+
+// 1회차 세 가지 제안의 묶음. 한 묶음에서 하나씩 고르므로 맥락, 마음, 디테일이 골고루 나옵니다.
+export const PLAN_GROUPS = [
+  ['add-who', 'add-where', 'add-when'], // 맥락: 읽는 사람이 상황을 알 수 있게
+  ['add-feeling', 'add-reason'], // 마음: 기분과 이유
+  ['add-talk', 'add-sense', 'add-detail'], // 디테일: 말, 소리와 모습, 한 문장 더
+];
+export const PLAN_SIZE = 3;
+
+// 1회차에 보여 줄 제안(최대 size개)을 현재 글에서 새로 계산해 돌려줍니다.
+// exclude: 이미 쓴 종류나 아이가 넘긴 제안(종류 이름 또는 id). 사진 일기는 한 줄 붙이기 하나뿐.
+export function planRound(text, opts = {}, { size = PLAN_SIZE, exclude = new Set() } = {}) {
+  const c = candidates(text, opts);
+  const usable = (s) => !exclude.has(s.kind) && !exclude.has(s.id);
+  if (opts.isPhoto) return c.add.filter(usable).slice(0, size);
+  const byKind = new Map();
+  for (const s of [...c.add, ...c.detail, ...c.second]) if (!byKind.has(s.kind)) byKind.set(s.kind, s);
+  const out = [];
+  const take = (kind) => {
+    const s = byKind.get(kind);
+    if (!s || !usable(s) || out.includes(s)) return false;
+    out.push(s);
+    return true;
+  };
+  // 묶음마다 하나씩, 모자라면 한 바퀴 더 (묶음에 남은 다음 후보)
+  for (let pass = 0; pass < PLAN_GROUPS.length && out.length < size; pass++) {
+    for (const group of PLAN_GROUPS) {
+      if (out.length >= size) break;
+      for (const kind of group) if (take(kind)) break;
+    }
+  }
+  // 그래도 모자라면 두 번째 종류(표기, 점 찍기, 나누기, 잇기)에서 종류마다 하나씩
+  for (const s of c.second) {
+    if (out.length >= size) break;
+    if (usable(s) && !out.some((x) => x.kind === s.kind)) out.push(s);
+  }
+  return out;
+}
+
+// 지금 글에서 어떤 종류의 제안을 다시 찾습니다. 앞 제안을 고쳐서 글이 바뀐 뒤에 위치를 새로 잡을 때 씁니다.
+export function findSuggestion(text, kind, opts = {}, exclude = new Set()) {
+  const c = candidates(text, opts);
+  return [...c.add, ...c.detail, ...c.second].find((s) => s.kind === kind && !exclude.has(s.id) && !exclude.has(s.kind)) || null;
+}
+
+// 1회차 제안 칸들: [{ kind, status: 'todo' | 'changed' | 'kept' | 'dropped' }]
+// 다듬기 보너스: 칸이 모두 끝났고(todo 없음), 그대로 둔 칸(kept)이 없고, 고친 칸이 하나 이상일 때.
+// dropped는 아이가 <이건 아닌 것 같아>로 넘겼는데 바꿀 다른 제안이 없거나, 앞에서 고치다가 이미 해결된 칸이라 보너스에 영향이 없습니다.
+export function bonusReady(plan) {
+  return plan.length > 0
+    && !plan.some((x) => x.status === 'todo' || x.status === 'kept')
+    && plan.some((x) => x.status === 'changed');
 }
 
 // 제안 하나 고르기. family: 'add' | 'second' | 'any'. exclude: 이미 말했거나 아이가 넘긴 제안 id 또는 종류
@@ -550,11 +617,12 @@ export function pickSuggestion(text, family, opts = {}, exclude = new Set()) {
   return list.find((s) => !exclude.has(s.id) && !exclude.has(s.kind)) || null;
 }
 
-// 다시 보기(한 번 더): 이미 말한 종류를 빼고 하나만. <자세히 한 문장 더>는 다시 보기에서 쓰지 않습니다.
+// 다시 보기(한 번 더): 이미 말한 종류를 빼고 하나만. 1회차가 내용 제안이었으니 표기, 점 찍기, 나누기, 잇기를 먼저 봅니다.
+// <자세히 한 문장 더>는 다시 보기에서 쓰지 않습니다.
 export function pickRoundTwo(text, opts = {}, shownKinds = []) {
   const ex = new Set([...shownKinds, 'add-detail']);
   if (opts.spellAllowed === false) ex.add('spell');
-  return pickSuggestion(text, 'any', opts, ex);
+  return pickSuggestion(text, 'second', opts, ex) || pickSuggestion(text, 'add', opts, ex);
 }
 
 // ---------------------------------------------------------------
