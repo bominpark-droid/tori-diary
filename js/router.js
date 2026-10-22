@@ -1,7 +1,7 @@
-// 화면 바꾸기 (주소의 # 뒤를 봅니다. 예: #/shop, #/diary/abc)
+// 화면 바꾸기 (주소의 # 뒤를 봅니다. 예: #/wallet, #/diary/abc)
 // 새 화면을 더하려면 아래 ROUTES에 한 줄을 더하고 js/screens/에 파일을 만듭니다.
 // 각 화면 파일은 render(root, params, app)를 내보내고, 필요하면 정리 함수를 돌려줍니다.
-// meta: { tab: 아래 탭 이름 | null, flow: 쓰기 흐름인지, music: 'library' | 'shop' | 'finish' | 'writing' | 'silent' }
+// meta: { tab: 아래 탭 이름 | null, flow: 쓰기 흐름인지, music: 'library' | 'decorate' | 'finish' | 'writing' | 'silent' }
 
 import { store } from './store.js';
 import { renderTabbar } from './ui.js';
@@ -23,7 +23,8 @@ const ROUTES = [
   ['/shelf/:mode', () => import('./screens/shelf.js')],
   ['/diary/:id', () => import('./screens/diary-view.js')],
   ['/diary/:id/:mode', () => import('./screens/diary-view.js')],
-  ['/shop', () => import('./screens/shop.js')],
+  ['/wallet', () => import('./screens/wallet.js')],
+  ['/shop', () => import('./screens/wallet.js')], // 문구점이 있던 때의 옛 주소(홈 화면에 붙여 둔 것)
   ['/settings', () => import('./screens/settings.js')],
   ['/parent', () => import('./screens/parent.js')],
 ];
@@ -62,7 +63,8 @@ export function currentPath() {
 export function musicScene(meta) {
   const s = store.state.settings;
   if (!meta || !meta.music) return 'library';
-  if (meta.music === 'writing') return s.musicWhileWriting ? 'library' : 'silent';
+  // 쓰는 중에는 멜로디와 드럼을 뺀 소리만 (글에 집중할 수 있게)
+  if (meta.music === 'writing') return s.musicWhileWriting ? 'writing' : 'silent';
   return meta.music;
 }
 

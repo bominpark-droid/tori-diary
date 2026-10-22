@@ -5,7 +5,7 @@ import { store } from '../store.js';
 import { talk, bubble } from '../ui.js';
 import { toriNode } from '../tori.js';
 import { coverSVG, coverMeta } from '../art/covers.js';
-import { FREE } from '../data/shop-items.js';
+import { FREE } from '../data/gifts.js';
 import { LINES, fill } from '../data/tori-lines.js';
 import { music } from '../music.js';
 import { nameVars } from './common.js';

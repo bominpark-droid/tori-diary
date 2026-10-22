@@ -3,7 +3,7 @@
 // 기록은 기기 밖으로 나가지 않습니다(보호자가 내보내기를 누를 때만 파일로 나감).
 
 import { dayKey } from './dates.js';
-import { FREE } from './data/shop-items.js';
+import { FREE } from './data/gifts.js';
 import { defaultHints } from './hints.js';
 
 const KEY = 'tori-diary:v1';
@@ -33,26 +33,28 @@ export function defaultState() {
       voice: false, // 말하기 입력 (기본 끔)
       voiceTest: null,
       quiet: { on: false, start: '21:00', end: '07:00' }, // 쉬는 시간대
-      payout: 'daily', // 'daily' 매일 | 'weekly' 주간 정산
+      payout: 'daily', // 'daily' 매일 | 'weekly' 주간 정산 (용돈이 잔액에 들어오는 때)
       payoutAnnounced: 'daily', // 아이에게 알린 지급 방식
       fadeReminderSeen: false,
     },
-    wallet: { ledger: [] }, // {id, day, type, amount, pending, diaryId, itemId, at}
+    // 용돈 장부. 종류: diary 일기 완성, polish 다듬기 보너스, week 주간 보너스, cashout 용돈 받기(영수증)
+    purse: { ledger: [] }, // {id, day, type, amount, pending, diaryId, week, given, canceled, at}
+    // 예전 문구머니 기록. 문구점이 없어지면서 읽기만 합니다(js/gifts.js의 convertLegacy). 지우지 않습니다.
+    wallet: { ledger: [] },
     owned: {
       covers: [...FREE.covers],
       stickers: [...FREE.stickers],
       fonts: [...FREE.fonts],
       frames: [],
-      items: [], // 산 상품 id
     },
     current: { cover: 'spring', font: 'basic' },
-    goal: null, // 목표 상품 id
+    gifts: { earned: 0, next: 0, log: [] }, // 토리의 선물: 쓴 날로 받은 개수, 순서표 위치, 받은 기록
     diaries: [],
     draft: null, // 쓰는 중인 일기
     hints: defaultHints(),
     topics: { recent: [], custom: [] },
     rests: [], // 쉰 날
-    metrics: { shopMs: {}, flowMs: {}, openDays: [] },
+    metrics: { flowMs: {}, openDays: [] },
     seen: {},
   };
 }

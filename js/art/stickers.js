@@ -1,5 +1,5 @@
 // 스티커 그림 (SVG, 100×100). 하얀 오림 테두리는 css/art.css의 .sticker가 그립니다.
-// 새 스티커: STICKERS에 하나 더하고, 파는 묶음은 js/data/shop-items.js의 grants에 id를 넣습니다.
+// 새 스티커: STICKERS에 하나 더하고, 선물로 주려면 js/data/gifts.js의 GIFTS 맨 뒤에 id를 넣습니다.
 
 import { toriSVG } from '../tori.js';
 

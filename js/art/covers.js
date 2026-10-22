@@ -1,5 +1,5 @@
 // 표지 그림 (SVG, 400×300, 어떤 크기에도 꽉 차게 잘려 보임)
-// 새 표지를 넣으려면: COVERS에 하나 더하고, js/data/shop-items.js에 상품을 더합니다.
+// 새 표지를 넣으려면: COVERS에 하나 더하고, js/data/gifts.js의 GIFTS에 선물을 더합니다.
 // color: 책등(일기장 책장) 색, ink: 책등 글자 색
 
 let n = 0;

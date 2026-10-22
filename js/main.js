@@ -1,9 +1,10 @@
-// 앱 시작: 설정 적용, 소리 준비, 주간 정산, 화면 바꾸기 시작, 오프라인 준비(서비스 워커)
+// 앱 시작: 설정 적용, 소리 준비, 주간 정산, 선물 정리, 화면 바꾸기 시작, 오프라인 준비(서비스 워커)
 
 import { store } from './store.js';
 import { startRouter } from './router.js';
 import { music } from './music.js';
 import { settle } from './rewards.js';
+import { catchUp } from './gifts.js';
 import { dayKey } from './dates.js';
 
 const root = document.documentElement;
@@ -31,6 +32,8 @@ function boot() {
       const amount = settle(s, today);
       if (amount > 0) s.seen.settled = { amount, day: today };
     }
+    // 문구점이 없어지면서 남은 문구머니를 선물로 바꾸고, 쌓여 있던 선물을 줌 (처음 한 번씩만 일어남)
+    catchUp(s, today);
     if (!s.metrics.openDays.includes(today)) s.metrics.openDays.push(today);
     if (s.metrics.openDays.length > 400) s.metrics.openDays = s.metrics.openDays.slice(-400);
   });

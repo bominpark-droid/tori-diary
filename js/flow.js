@@ -3,7 +3,8 @@
 import { store, findDiary } from './store.js';
 import { dayKey } from './dates.js';
 import { uid } from './util.js';
-import { earnDiary, canEarnDiary } from './rewards.js';
+import { earnDiary, earnWeek, canEarnDiary } from './rewards.js';
+import { grantDue } from './gifts.js';
 import { praiseFor, sentenceCount, splitSentences, quoteOf } from './feedback.js';
 
 export function newDraft() {
@@ -56,7 +57,7 @@ export function readyToFinish(d) {
   return hangul >= 3;
 }
 
-// <다 썼어>: 일기를 책장에 넣고 문구머니를 계산합니다.
+// <다 썼어>: 일기를 책장에 넣고 용돈과 선물을 계산합니다.
 export function finishDraft() {
   const s = store.state;
   const d = s.draft;
@@ -108,15 +109,19 @@ export function finishDraft() {
     },
   };
   let reward = { amount: 0, pending: false };
+  let week = { amount: 0, pending: false };
+  let gifts = [];
   store.update((st) => {
     st.diaries.push(diary);
     reward = earnDiary(st, day, diary.id);
+    week = earnWeek(st, day, diary.id);
+    gifts = grantDue(st, day, diary.id);
     st.settings.lastInput = d.input;
     st.draft = null;
     const m = st.metrics;
     m.flowMs[day] = (m.flowMs[day] || 0) + (Date.now() - d.startedAt);
   });
-  return { diary: findDiary(diary.id), reward, first };
+  return { diary: findDiary(diary.id), reward, week, gifts, first };
 }
 
 export function updateDiary(id, fn) {

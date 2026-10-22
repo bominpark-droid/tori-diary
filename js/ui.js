@@ -1,4 +1,4 @@
-// 화면 공통 부품: 아이콘, 토리 말풍선, 아래 창, 확인 창, 알림 띠, 탭 막대, 쓰기 흐름 막대, 문구머니 배지.
+// 화면 공통 부품: 아이콘, 토리 말풍선, 아래 창, 확인 창, 알림 띠, 탭 막대, 쓰기 흐름 막대, 용돈 배지.
 // 모양(CSS)은 css/base.css, 움직임은 css/art.css에 있습니다.
 
 import { h, svg, clear, won } from './util.js';
@@ -10,7 +10,7 @@ const I = (d, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="curre
 export const ICONS = {
   home: I('<path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>'),
   book: I('<path d="M4 5c3-1.4 5.6-1.4 8 0v15c-2.4-1.4-5-1.4-8 0z"/><path d="M12 5c2.4-1.4 5-1.4 8 0v15c-3-1.4-5.6-1.4-8 0"/>'),
-  shop: I('<path d="M4 9h16l-1.2 11H5.2z"/><path d="M8 9V7a4 4 0 0 1 8 0v2"/>'),
+  wallet: I('<path d="M5 7.5V6a2 2 0 0 1 2-2h10v3.5"/><rect x="3.5" y="7.5" width="17" height="12.5" rx="2.5"/><path d="M16.5 12.5h4v4h-4a2 2 0 0 1 0-4z"/>'),
   gear: I('<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M4.2 7.5l2.2 1.3M17.6 15.2l2.2 1.3M4.2 16.5l2.2-1.3M17.6 8.8l2.2-1.3"/><circle cx="12" cy="12" r="7"/>'),
   phones: I('<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="5" height="7" rx="2.2"/><rect x="16" y="14" width="5" height="7" rx="2.2"/>'),
   phonesOff: I('<path d="M4 15v-3a8 8 0 0 1 12.4-6.7M20 12v3"/><rect x="3" y="14" width="5" height="7" rx="2.2"/><rect x="16" y="14" width="5" height="7" rx="2.2"/><path d="M3 3l18 18"/>'),
@@ -160,12 +160,12 @@ export function toast(text, ms = 2600) {
   toastTimer = setTimeout(() => el.remove(), ms);
 }
 
-// ---------- 문구머니 배지 ----------
+// ---------- 용돈 배지 ----------
 export function coinBadge(amount, opts = {}) {
   const el = h(opts.href === null ? 'span' : 'a', {
     class: ['coin-badge', opts.hop ? 'coin-hop' : null],
-    href: opts.href === null ? undefined : opts.href || '#/shop',
-    'aria-label': `문구머니 ${won(amount)}${opts.href === null ? '' : ', 문구점으로 가기'}`,
+    href: opts.href === null ? undefined : opts.href || '#/wallet',
+    'aria-label': `용돈 ${won(amount)}${opts.href === null ? '' : ', 용돈 화면으로 가기'}`,
   });
   el.innerHTML = coinSVG();
   el.appendChild(h('span', null, won(amount)));
@@ -216,7 +216,7 @@ export function chip(label, { pressed = false, onClick, iconSvg, cls } = {}) {
 const TABS = [
   { id: 'home', href: '#/', label: '서재', icon: 'home' },
   { id: 'shelf', href: '#/shelf', label: '일기장', icon: 'book' },
-  { id: 'shop', href: '#/shop', label: '문구점', icon: 'shop' },
+  { id: 'wallet', href: '#/wallet', label: '용돈', icon: 'wallet' },
   { id: 'settings', href: '#/settings', label: '설정', icon: 'gear' },
 ];
 
