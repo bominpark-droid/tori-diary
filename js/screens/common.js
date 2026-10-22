@@ -9,6 +9,7 @@ import { coverSVG } from '../art/covers.js';
 import { stickerSVG, stickerMeta } from '../art/stickers.js';
 import { FRAMES } from '../art/covers.js';
 import { fontStyle } from '../data/fonts.js';
+import { giftInfo } from '../gifts.js';
 import { callName, softName } from '../josa.js';
 import { WEATHER } from '../data/plan.js';
 
@@ -116,12 +117,32 @@ export function diffSides(tokens) {
   };
 }
 
-// 문구머니 카드 (일기 완성, 다듬기 보너스)
+// 용돈 카드 (일기 완성, 다듬기 보너스, 주간 보너스)
 export function rewardCard({ title, amount, note }) {
   return h('div', { class: 'reward-card reward-in', role: 'status' },
     h('span', { class: 'reward-coin', html: coinSVG() }),
     h('div', { class: 'grow' }, h('div', { class: 'reward-title ui' }, title), note ? h('div', { class: 'muted small' }, note) : null),
     amount ? h('div', { class: 'reward-amount ui' }, `+${won(amount)}`) : null);
+}
+
+// 선물 모양: 스티커는 그림, 표지는 작은 그림, 글씨는 견본, 쪽 테두리는 색 띠
+export function giftLook(entry, size = 64) {
+  if (entry.kind === 'sticker') return stickerNode(entry.id, size);
+  if (entry.kind === 'cover') return h('span', { class: 'gift-cover', html: coverSVG(entry.id, '') });
+  if (entry.kind === 'font') return h('span', { class: 'gift-font', style: fontStyle(entry.id) }, '토리 일기');
+  const fr = FRAMES[entry.id];
+  return h('span', { class: 'gift-frame', style: `--frame:${fr ? fr.color : '#B9C5DA'}`, role: 'img', 'aria-label': fr ? fr.name : '쪽 테두리' });
+}
+
+// 선물 카드 (일기를 완성했을 때 토리가 주는 선물)
+export function giftCard(entry, { title = '토리의 선물', note } = {}) {
+  const info = giftInfo(entry);
+  return h('div', { class: 'gift-card reward-in', role: 'status' },
+    h('div', { class: 'gift-look' }, giftLook(entry)),
+    h('div', { class: 'grow' },
+      h('div', { class: 'reward-title ui' }, title),
+      h('div', { class: 'gift-name' }, info.text),
+      note ? h('div', { class: 'muted small' }, note) : null));
 }
 
 // 위쪽 작은 제목 줄

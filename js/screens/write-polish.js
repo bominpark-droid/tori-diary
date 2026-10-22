@@ -1,7 +1,7 @@
 // ⑤ 다듬기 도우미 (아이가 눌러야 시작). docs/DESIGN.md 4.3 ⑤, 5절
 // 한 번에 제안 하나만 보여 줍니다.
 // 1회차: 더하기형 하나 → 두 번째 종류(표기, 점 찍기, 나누기, 잇기) 하나. 두 번째는 바뀐 글로 다시 찾습니다.
-// 1회차에서 처음 고치면 다듬기 보너스(하루 한 번). <한 번 더>(2회차)는 토리 반응만 있고 문구머니는 없습니다.
+// 1회차에서 처음 고치면 다듬기 보너스(하루 한 번). <한 번 더>(2회차)는 토리 반응만 있고 용돈은 없습니다.
 // 보기를 고르든 자기 말로 쓰든 글이 바뀌면 <따라 고쳤다>로 봅니다(사용자 결정).
 
 import { h, clear, pick, seedOf, put } from '../util.js';
@@ -13,7 +13,7 @@ import {
   pickSuggestion, pickRoundTwo, applyOption, applyOwn, previewOption, isChanged, ownReady,
   reactionFor, afterChangeLine, diffWords, splitSentences,
 } from '../feedback.js';
-import { canEarnBonus, earnBonus } from '../rewards.js';
+import { canEarnPolish, earnPolish } from '../rewards.js';
 import { updateDiary } from '../flow.js';
 import { dayKey } from '../dates.js';
 import { music } from '../music.js';
@@ -232,8 +232,8 @@ export function render(root, params, app) {
     st.text = next;
     log(how, true);
     let reward = null;
-    if (st.round === 1 && bonusDay && !st.paidNow && canEarnBonus(store.state, today)) {
-      store.update((s) => { reward = earnBonus(s, today, d.id); });
+    if (st.round === 1 && bonusDay && !st.paidNow && canEarnPolish(store.state, today)) {
+      store.update((s) => { reward = earnPolish(s, today, d.id); });
       if (reward && reward.amount) {
         st.paidNow = reward.amount;
         save((p) => { p.bonus = (p.bonus || 0) + reward.amount; });

@@ -9,6 +9,9 @@
 // {j:키:이/가}처럼 쓰면 그 값 뒤에 맞는 조사(이/가, 을/를, 으로/로 …)를 붙입니다.
 
 import { josa } from '../josa.js';
+import { won } from '../util.js';
+import { AMOUNT, MIN_CASHOUT } from '../rewards.js';
+import { GIFT_EVERY } from './gifts.js';
 
 export const LINES = {
   hello: [
@@ -30,9 +33,12 @@ export const LINES = {
   },
   greetDone: ['오늘 일기 고마워! 또 쓰고 싶은 이야기가 생기면 언제든 와.', '오늘 이야기는 내 책장에 잘 꽂아 뒀어.'],
   greetReply: '가족에게서 답장이 왔어! 일기장에서 열어 봐.',
-  greetSettled: '지난주에 모은 문구머니 {amount}이 들어왔어!',
-  payoutWeekly: '이제부터 문구머니는 일주일 동안 모았다가 월요일에 한꺼번에 들어와.',
-  payoutDaily: '이제부터 문구머니는 일기를 쓰는 날 바로 들어와.',
+  greetSettled: '지난주에 모은 용돈 {amount}이 들어왔어!',
+  payoutWeekly: '이제부터 용돈은 일주일 동안 모았다가 월요일에 한꺼번에 들어와.',
+  payoutDaily: '이제부터 용돈은 일기를 쓰는 날 바로 들어와.',
+  greetLegacy: '문구점은 문을 닫았어. 대신 선물 {count}개를 준비했어. 용돈 탭에서 볼 수 있어.',
+  greetLegacyNone: '문구점은 문을 닫았어. 이제 일기를 쓰면 토리가 스티커를 하나씩 선물할게.',
+  greetGifts: '일기를 쓴 날이 쌓여서 선물이 {count}개 왔어! 용돈 탭에서 볼 수 있어.',
 
   sceneStart: '오늘 하루에서 뭔가 있었던 칸을 눌러 봐. 한 마디만 써도 돼.',
   scene: '누구한테 제일 얘기해 주고 싶은 장면이야?',
@@ -66,9 +72,11 @@ export const LINES = {
   ],
   doneQuote: '오늘 일기에서 ‘{quote}’ 부분이 오래 기억날 것 같아.',
   donePhoto: '사진 일기 잘 받았어! 네 글씨로 쓴 이야기라 더 특별해.',
-  sameDay: '오늘 문구머니는 첫 일기에 들어 있어. 이 이야기는 마음껏 남겨 두자.',
-  bonusInfo: '토리 제안을 보고 글을 고치면 다듬기 보너스 1,000원',
+  sameDay: '오늘 용돈은 첫 일기에 들어 있어. 이 이야기는 마음껏 남겨 두자.',
+  bonusInfo: `토리 제안을 보고 글을 고치면 다듬기 보너스 ${won(AMOUNT.polish)}`,
   bonusDone: '다듬기 보너스는 오늘 이미 받았어. 그래도 같이 읽어 볼 수 있어.',
+  weekDone: '이번 주는 일곱 날 모두 이야기를 들려줬네. 한 주가 책 한 권처럼 꽉 찼어.',
+  giftOnDone: '일기를 쓴 날이 쌓여서 선물을 준비했어. 꾸미기에서 붙여 볼래?',
 
   // 칭찬: 아이 글 인용 + 아이가 쓴 방법 + 읽는 사람에게 생긴 일
   praise: {
@@ -184,7 +192,7 @@ export const LINES = {
   spellKept: '그렇게 써도 무슨 말인지는 알아. 책에서는 보통 ‘{right}’{j:right:으로/로} 써. 바꿔 볼래?',
   rejected: ['알겠어, 다른 걸 볼게.', '그럴 수 있지. 그럼 이건 어때?'],
   noMore: '알겠어! 이건 넘어가자.',
-  bonusGot: '다듬기 보너스 1,000원도 들어왔어.',
+  bonusGot: `다듬기 보너스 ${won(AMOUNT.polish)}도 들어왔어.`,
   compare: '처음 글이랑 나란히 볼래?',
   againAsk: '한 번 더 볼래?',
   roundTwoNone: '더 말해 줄 건 없어. 오늘 일기 정말 잘 읽혔어!',
@@ -198,19 +206,22 @@ export const LINES = {
   share: '이 일기를 가족에게 보여 줄래? 안 보여 줘도 괜찮아.',
   finish: ['오늘 이야기 고마워. 내일 또 들려줘!', '오늘 쪽도 책장에 잘 꽂아 둘게. 내일 또 만나!'],
 
-  shopHello: '문구점에 온 걸 환영해! 일기를 꾸밀 물건이 가득해.',
-  shopBuy: ['멋진 걸 골랐네! 바로 써 볼래?', '와, 일기장이 더 예뻐지겠다!'],
-  shopGoalWarn: '이걸 사면 목표까지 조금 더 모아야 해. 그래도 살래?',
-  shopNotEnough: '조금만 더 모으면 살 수 있어.',
-  goalHint: '갖고 싶은 걸 하나 골라서 목표로 정해 봐.',
-  goalReady: '목표한 걸 살 수 있어!',
+  walletHello: '여기는 네 용돈 지갑이야. 일기를 쓰면 한 푼씩 모여.',
+  walletNeed: `${won(MIN_CASHOUT)}이 되면 받을 수 있어.`,
+  walletCashAsk: '모은 용돈을 받을래? 가족에게 영수증을 보여 주면 돼.',
+  walletCashDone: '영수증이 생겼어. 가족에게 보여 주면 용돈을 전해 줄 거야.',
+  walletGiven: '받았구나! 잘 모았다가 마음에 드는 데 써.',
+  walletCancel: '영수증을 취소했어. 용돈은 다시 지갑으로 돌아왔어.',
+  giftHello: `일기를 ${GIFT_EVERY}일 쓸 때마다 토리가 선물을 하나씩 줄게. 꾸미기에서 붙여 봐.`,
+  giftEmpty: '아직 받은 선물이 없어. 곧 첫 선물이 올 거야.',
+  giftAllGiven: '준비한 선물을 다 줬어! 새 선물이 생기면 다시 알려 줄게.',
 
   quiet: '지금은 쉬는 시간이야. 토리도 책 덮고 잘게. 내일 만나!',
   reread: '이번 주 일기 중에 하나 골라서 다시 읽어 볼래?',
   rereadAsk: '다시 읽어 보니 어때?',
   rereadThanks: '다시 읽어 줘서 고마워. 이 책에 표시해 둘게.',
   shelfEmpty: '아직 책장이 비어 있어. 오늘 이야기로 첫 책을 꽂아 볼까?',
-  editAgain: '다시 바꿔도 문구머니는 그대로야. 마음껏 바꿔 봐.',
+  editAgain: '다시 바꿔도 용돈은 그대로야. 마음껏 바꿔 봐.',
   deleteAsk: '이 일기를 지울까? 지우면 되돌릴 수 없어.',
   replyNew: '가족이 답장을 남겼어!',
 };

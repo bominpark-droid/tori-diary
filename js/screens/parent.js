@@ -1,15 +1,16 @@
 // 보호자 화면 (PIN 4자리). docs/DESIGN.md 4.7
 // - 이번 주 한눈에는 숫자만 보여 줍니다. 아이 글 내용과 다듬기 내용은 보이지 않습니다.
 // - 글은 아이가 <보여 줄래>를 고른 일기만 읽고 답장할 수 있습니다.
-// - 보호자는 문구머니를 주거나 뺄 수 없습니다(이 화면에 그런 단추가 없음).
+// - 보호자는 용돈을 주거나 뺄 수 없습니다(이 화면에 그런 단추가 없음). 아이가 받겠다고 한 영수증을 <줬어요>로 표시할 수만 있습니다.
 
 import { h, clear, downloadText, seedOf, won, put } from '../util.js';
 import { store, askPersistentStorage } from '../store.js';
 import { icon, toast, ask, openSheet, switchRow, seg, screenTitle } from '../ui.js';
-import { balance, pendingTotal, settleAll } from '../rewards.js';
+import { AMOUNT, balance, pendingTotal, settleAll, receipts, markGiven, owedTotal, givenTotal } from '../rewards.js';
 import { dayKey, weekStart, addDays, koreanDate, daysBetween } from '../dates.js';
 import { speechSupported, listen, similarity, VOICE_TEST } from '../speech.js';
 import { exportPhotos, importPhotos, deletePhoto } from '../photos.js';
+import { catchUp } from '../gifts.js';
 
 export const meta = { tab: null, flow: false, music: 'silent' };
 
@@ -48,7 +49,7 @@ function weekStats(s, start, end) {
   const sum = (obj) => Object.entries(obj || {}).filter(([k]) => inRange(k)).reduce((a, [, v]) => a + v, 0);
   const inputs = { keyboard: 0, voice: 0, photo: 0 };
   for (const d of ds) inputs[d.input] = (inputs[d.input] || 0) + 1;
-  const ledger = s.wallet.ledger.filter((e) => inRange(e.day));
+  const ledger = s.purse.ledger.filter((e) => inRange(e.day) && !e.canceled);
   return {
     wrote: daysWith(() => true),
     rested: (s.rests || []).filter(inRange).length,
@@ -59,7 +60,6 @@ function weekStats(s, start, end) {
     planSkipped: ds.filter((d) => d.stats.planSkipped).length,
     hints: ds.reduce((a, d) => a + (d.stats.hintsOpened || 0), 0),
     inputs,
-    shopMin: Math.round(sum(s.metrics.shopMs) / 60000),
     flowMin: Math.round(sum(s.metrics.flowMs) / 60000),
     earned: ledger.filter((e) => e.amount > 0).reduce((a, e) => a + e.amount, 0),
     spent: -ledger.filter((e) => e.amount < 0).reduce((a, e) => a + e.amount, 0),
@@ -146,7 +146,7 @@ export function render(root, params, app) {
       const input = h('input', { class: 'field', type: 'text', 'aria-label': '확인 문장', autocomplete: 'off' });
       return h('div', { class: 'stack' },
         h('h2', null, 'PIN 새로 정하기'),
-        h('p', null, '아래 문장을 그대로 입력하면 PIN을 새로 정할 수 있어요. 일기와 문구머니 기록은 지워지지 않습니다.'),
+        h('p', null, '아래 문장을 그대로 입력하면 PIN을 새로 정할 수 있어요. 일기와 용돈 기록은 지워지지 않습니다.'),
         h('p', { class: 'pill' }, RESET_PHRASE),
         input,
         h('button', { class: 'btn btn-primary btn-big', type: 'button', on: { click: () => {
@@ -171,15 +171,44 @@ export function render(root, params, app) {
     if (s.parent.payout === 'daily' && !s.parent.fadeReminderSeen && daysBetween(s.firstDay, today) >= 90) {
       wrap.appendChild(h('section', { class: 'card seam stack-sm notice' },
         h('h2', { class: 'card-title' }, '주간 정산으로 바꿀 시기를 생각해 보세요'),
-        h('p', null, '처음 쓴 날로부터 3개월쯤 지났어요. 매일 받던 문구머니를 일주일에 한 번 받는 방식으로 바꾸면 보상이 일기 쓰기의 중심이 되는 것을 줄이는 데 도움이 될 수 있어요. 바꾸면 서재에서 토리가 아이에게 먼저 알려 줍니다.'),
+        h('p', null, '처음 쓴 날로부터 3개월쯤 지났어요. 매일 들어오던 용돈을 일주일에 한 번 들어오는 방식으로 바꾸면 보상이 일기 쓰기의 중심이 되는 것을 줄이는 데 도움이 될 수 있어요. 바꾸면 서재에서 토리가 아이에게 먼저 알려 줍니다.'),
         h('button', { class: 'btn btn-soft', type: 'button', on: { click: () => { store.update((st) => { st.parent.fadeReminderSeen = true; }); paint(); } } }, '알겠어요')));
     }
 
+    wrap.appendChild(cashSection());
     wrap.appendChild(weekSection(today));
     wrap.appendChild(sharedSection());
     wrap.appendChild(settingsSection());
     wrap.appendChild(backupSection(today));
-    wrap.appendChild(h('p', { class: 'muted small center' }, '보호자는 문구머니를 주거나 뺄 수 없어요. 보상이 그날 기분에 따라 바뀌지 않게 하려는 설계입니다.'));
+    wrap.appendChild(h('p', { class: 'muted small center' }, '보호자는 앱 안의 용돈을 주거나 뺄 수 없어요. 보상이 그날 기분에 따라 바뀌지 않게 하려는 설계입니다.'));
+  }
+
+  function cashSection() {
+    const s = store.state;
+    const list = receipts(s);
+    const waiting = list.filter((e) => !e.given && !e.canceled).length;
+    const box = h('section', { class: 'card stack-sm' },
+      h('h2', { class: 'card-title' }, waiting ? `용돈 영수증 (전달 대기 ${waiting}건)` : '용돈 영수증'),
+      statRow('아이 지갑 잔액', won(balance(s))),
+      statRow('아직 안 전해 준 돈', won(owedTotal(s))),
+      statRow('지금까지 전해 준 돈', won(givenTotal(s))),
+      h('p', { class: 'muted small' }, '이 앱은 돈을 보내지 않아요. 아이가 <용돈 받을래>를 누르면 영수증이 생겨요. 현금이나 이체로 직접 전해 주신 뒤 <줬어요>를 눌러 주세요. 아이가 영수증을 취소하면 돈이 다시 아이 지갑으로 돌아가요.'));
+    if (!list.length) {
+      box.appendChild(h('p', { class: 'muted' }, '아직 아이가 용돈을 받겠다고 한 적이 없어요.'));
+      return box;
+    }
+    for (const e of list.slice(0, 20)) {
+      const stateText = e.canceled ? '아이가 취소했어요' : e.given ? '전해 줬어요' : '전달 대기';
+      box.appendChild(h('div', { class: ['receipt-row', e.canceled ? 'canceled' : null] },
+        h('div', { class: 'grow' },
+          h('div', { class: 'ui receipt-amount' }, won(-e.amount)),
+          h('div', { class: 'muted small' }, `${koreanDate(e.day)} · ${stateText}`)),
+        e.canceled ? null : h('button', { class: ['btn', e.given ? 'btn-soft' : 'btn-primary'], type: 'button', on: { click: () => {
+          store.update((st) => { markGiven(st, e.id, !e.given); });
+          paint();
+        } } }, e.given ? '되돌리기' : '줬어요')));
+    }
+    return box;
   }
 
   function weekSection(today) {
@@ -201,10 +230,10 @@ export function render(root, params, app) {
         statRow('계획 건너뜀', `${w.planSkipped}번`),
         statRow('계획 힌트를 연 횟수', `${w.hints}번`),
         statRow('쓰는 방법', `쓰기 ${w.inputs.keyboard || 0} · 말하기 ${w.inputs.voice || 0} · 사진 ${w.inputs.photo || 0}`),
-        statRow('문구점에 머문 시간 / 쓰기 흐름 시간', `${w.shopMin}분 / ${w.flowMin}분`),
-        statRow('들어온 문구머니 / 쓴 문구머니', `${won(w.earned)} / ${won(w.spent)}`),
+        statRow('쓰기 흐름에 쓴 시간', `${w.flowMin}분`),
+        statRow('들어온 용돈 / 받겠다고 한 용돈', `${won(w.earned)} / ${won(w.spent)}`),
         offset === 0 ? statRow('지금 잔액', won(balance(s))) : null,
-        offset === 0 && pendingTotal(s) > 0 ? statRow('월요일에 들어올 문구머니', won(pendingTotal(s))) : null,
+        offset === 0 && pendingTotal(s) > 0 ? statRow('월요일에 들어올 용돈', won(pendingTotal(s))) : null,
         h('p', { class: 'muted small' }, '글 내용과 다듬기 내용은 여기에 나오지 않아요.'));
     };
     draw();
@@ -253,7 +282,7 @@ export function render(root, params, app) {
     const p = s.parent;
     const box = h('section', { class: 'card stack-sm' }, h('h2', { class: 'card-title' }, '설정'));
 
-    box.appendChild(switchRow('다듬기 도우미', p.helper, (v) => store.update((st) => { st.parent.helper = v; }), '끄면 다듬기 단추와 다듬기 보너스가 없어져요. 일기 완성 1,000원은 그대로예요.'));
+    box.appendChild(switchRow('다듬기 도우미', p.helper, (v) => store.update((st) => { st.parent.helper = v; }), `끄면 다듬기 단추와 다듬기 보너스가 없어져요. 일기 완성 ${won(AMOUNT.diary)}은 그대로예요.`));
 
     // 말하기 입력
     const supported = speechSupported();
@@ -297,11 +326,11 @@ export function render(root, params, app) {
 
     // 지급 방식
     box.appendChild(h('div', { class: 'set-row' },
-      h('div', { class: 'grow' }, h('div', { class: 'ui set-label' }, '문구머니 지급 방식'), h('div', { class: 'muted small' }, '주간 정산: 한 주 동안 모은 것이 다음 주 월요일에 들어와요. 바꾸면 토리가 서재에서 아이에게 먼저 알려 줘요.')),
+      h('div', { class: 'grow' }, h('div', { class: 'ui set-label' }, '용돈이 지갑에 들어오는 때'), h('div', { class: 'muted small' }, '주간 정산: 한 주 동안 모은 것이 다음 주 월요일에 들어와요. 바꾸면 토리가 서재에서 아이에게 먼저 알려 줘요.')),
       seg([{ value: 'daily', label: '매일' }, { value: 'weekly', label: '주간 정산' }], p.payout, async (v) => {
         if (v === store.state.parent.payout) return;
         if (v === 'weekly') {
-          const yes = await ask({ title: '주간 정산으로 바꿀까요?', body: '이제부터 생기는 문구머니는 월요일에 한꺼번에 들어가요. 지금 잔액은 그대로예요.', yes: '바꿀게요', no: '그대로 둘게요' });
+          const yes = await ask({ title: '주간 정산으로 바꿀까요?', body: '이제부터 생기는 용돈은 월요일에 한꺼번에 들어가요. 지금 잔액은 그대로예요.', yes: '바꿀게요', no: '그대로 둘게요' });
           if (!yes) { paint(); return; }
           store.update((st) => { st.parent.payout = 'weekly'; });
         } else {
@@ -414,6 +443,8 @@ export function render(root, params, app) {
         toast('사진 일부를 가져오지 못했어요.');
       }
       store.replace(data.state);
+      // 옛 버전 백업이면 문구머니를 선물로 바꾸고 쌓여 있던 선물을 줌
+      store.update((st) => { catchUp(st, today); });
       unlocked = !!store.state.parent.pin;
       toast('백업 파일을 가져왔어요.');
       paint();
@@ -432,7 +463,7 @@ export function render(root, params, app) {
       h('p', { class: 'muted small' }, '홈 화면에서 열면 주소창 없이 앱처럼 보여요. 기록은 같은 브라우저 안에 저장됩니다.')));
 
     box.appendChild(h('button', { class: 'btn btn-ghost danger-text', type: 'button', on: { click: async () => {
-      const yes = await ask({ title: '모든 기록을 지울까요?', body: '일기, 사진, 문구머니, 산 물건, 설정이 모두 지워지고 되돌릴 수 없어요. 먼저 파일로 내보내기를 권해요.', yes: '모두 지울게요', no: '그만둘게요', danger: true });
+      const yes = await ask({ title: '모든 기록을 지울까요?', body: '일기, 사진, 용돈 기록, 선물, 설정이 모두 지워지고 되돌릴 수 없어요. 먼저 파일로 내보내기를 권해요.', yes: '모두 지울게요', no: '그만둘게요', danger: true });
       if (!yes) return;
       const again = await ask({ title: '정말 모두 지울까요?', body: '한 번 더 확인할게요.', yes: '네, 지울게요', no: '아니요', danger: true });
       if (!again) return;

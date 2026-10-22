@@ -7,6 +7,7 @@ import { toriNode } from '../tori.js';
 import { coverSVG } from '../art/covers.js';
 import { LINES, fill } from '../data/tori-lines.js';
 import { balance, pendingTotal } from '../rewards.js';
+import { unseenLoose } from '../gifts.js';
 import { dayKey, partOfDay, weekStart, fromKey } from '../dates.js';
 import { won } from '../util.js';
 import { music } from '../music.js';
@@ -21,6 +22,12 @@ function greeting(s, today) {
   const wrote = s.diaries.some((d) => d.day === today);
   const unread = s.diaries.some((d) => (d.replies || []).some((r) => !r.read));
   if (unread) return { mood: 'wow', lines: [LINES.greetReply] };
+  // 문구점이 없어지면서 생긴 선물, 쌓여 있던 선물
+  const loose = unseenLoose(s);
+  if (s.seen.legacyNotice && !s.seen.legacyNotice.shown) {
+    return { mood: 'cheer', lines: [loose.length ? fill(LINES.greetLegacy, { count: loose.length }) : LINES.greetLegacyNone], once: 'legacy' };
+  }
+  if (loose.length) return { mood: 'cheer', lines: [fill(LINES.greetGifts, { count: loose.length })], once: 'gifts' };
   if (s.seen.settled && s.seen.settled.day === today && !s.seen.settled.shown) {
     return { mood: 'cheer', lines: [fill(LINES.greetSettled, { amount: won(s.seen.settled.amount) })], once: 'settled' };
   }
@@ -51,6 +58,12 @@ export function render(root, params, app) {
   const g = greeting(s, today);
   if (g.once === 'settled') store.update((st) => { st.seen.settled.shown = true; });
   if (g.once === 'payout') store.update((st) => { st.parent.payoutAnnounced = st.parent.payout; });
+  if (g.once === 'legacy' || g.once === 'gifts') {
+    store.update((st) => {
+      if (st.seen.legacyNotice) st.seen.legacyNotice.shown = true;
+      for (const x of unseenLoose(st)) x.seen = true;
+    });
+  }
 
   const wrote = s.diaries.some((d) => d.day === today);
   const rested = (s.rests || []).includes(today);
@@ -95,7 +108,7 @@ export function render(root, params, app) {
   const weekCard = h('section', { class: 'card week-card' },
     h('div', { class: 'row-between' },
       h('h2', { class: 'card-title' }, `이번 주 쓴 날 ${week.count}일`),
-      pending > 0 ? h('span', { class: 'pill' }, `월요일에 들어올 문구머니 ${won(pending)}`) : null),
+      pending > 0 ? h('span', { class: 'pill' }, `월요일에 들어올 용돈 ${won(pending)}`) : null),
     week.el);
 
   // 이번 주 되돌아보기 (토, 일 또는 3일 이상 쓴 주)

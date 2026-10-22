@@ -303,7 +303,7 @@ body.flow #tabbar { display: none; }
 .step-dot.done { background: var(--mint); }
 .step-dot.now { background: var(--primary); width: 30px; border-radius: 6px; }
 
-/* ---------- 문구머니 ---------- */
+/* ---------- 용돈 ---------- */
 .coin-badge {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 6px 14px 6px 8px; border-radius: 999px;

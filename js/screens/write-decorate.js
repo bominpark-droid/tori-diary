@@ -12,7 +12,7 @@ import { updateDiary } from '../flow.js';
 import { music } from '../music.js';
 import { musicButton, diaryPage, stickerNode } from './common.js';
 
-export const meta = { tab: null, flow: true, music: 'shop' };
+export const meta = { tab: null, flow: true, music: 'decorate' };
 
 export function render(root, params, app) {
   const first = findDiary(params.id);
@@ -65,7 +65,7 @@ export function render(root, params, app) {
       for (const sid of s.owned.stickers) {
         tray.appendChild(h('button', { class: 'tray-btn', type: 'button', on: { click: () => place(sid) } }, stickerNode(sid, 54)));
       }
-      put(picker, tray, h('p', { class: 'muted small' }, '문구점에서 스티커를 더 살 수 있어.'));
+      put(picker, tray, h('p', { class: 'muted small' }, '일기를 쓴 날이 쌓이면 토리가 스티커를 더 선물해 줘.'));
     } else if (tab === 'covers') {
       const grid = h('div', { class: 'cover-grid small', role: 'radiogroup', 'aria-label': '이 일기 표지' });
       for (const cid of s.owned.covers) {
