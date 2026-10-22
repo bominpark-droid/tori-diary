@@ -44,6 +44,7 @@
 | 다듬기가 글에서 찾는 낱말(사람, 장소, 시간, 기분, 이유) | `js/data/words.js` |
 | 토리 시범 일기 | `js/data/tori-diaries.js` |
 | 음악 | `js/music.js` (Web Audio로 직접 연주, 파일 없음). 위쪽의 화음표 `CH`, 마디 목록, 멜로디 `MEL_`을 고칩니다. 바꾸면 `tests/music.test.js`가 화음과 부딪치는 음을 찾아 줍니다. Claude는 소리를 직접 들을 수 없으니 새 곡은 보호자와 아이 귀로 확인합니다 |
+| 꾸미기 화면(배경, 글씨, 스티커 끌기) | 화면 `js/screens/write-decorate.js`, 일기 쪽 그림 `js/screens/common.js`의 `diaryPage`, 위치와 크기 계산 `js/decor.js`, 끌기 `js/sticker-layer.js`. 스티커 기록은 `{id, x, y, s}`이고 예전 `slot`은 지우지 않고 위치가 없을 때만 읽습니다. 가진 것(`state.owned`)만 고르게 합니다 |
 
 ## 시험과 올리기
 
