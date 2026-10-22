@@ -106,7 +106,7 @@ export function render(root) {
     h('h2', { class: 'card-title' }, '용돈이 모이는 때'),
     h('ul', { class: 'rule-list' },
       h('li', null, h('b', null, `일기를 쓰면 ${won(AMOUNT.diary)}`), ' (그날 첫 일기)'),
-      h('li', null, h('b', null, `토리 제안을 보고 글을 고치면 ${won(AMOUNT.polish)}`), ' (하루 한 번)'),
+      h('li', null, h('b', null, `토리 제안(세 가지쯤)을 모두 고치면 ${won(AMOUNT.polish)}`), ' (하루 한 번)'),
       h('li', null, h('b', null, `한 주(월~일) 7일을 모두 쓰면 ${won(AMOUNT.week)}`), ' (일요일에 7일이 채워지면)')),
     h('p', { class: 'muted small' }, `같은 날 또 쓴 일기에는 용돈이 없어. ${won(MIN_CASHOUT)}이 되면 받을 수 있어.`));
 

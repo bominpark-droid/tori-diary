@@ -2,7 +2,7 @@
 // 용돈은 실제 돈과 1원 = 1원으로 바뀝니다. 앱이 돈을 보내지는 않고, 아이가 <받을래>를 누르면 영수증이 생기며
 // 보호자가 직접 전해 준 뒤 <줬어요>를 누릅니다.
 // - 그날 첫 일기 완성: 300원
-// - 그날 처음 다듬기 제안을 따라 고침: 다듬기 보너스 200원 (보호자가 도우미를 끄면 없음)
+// - 그날 다듬기 1회차에서 토리 제안(세 가지쯤)을 모두 고침: 다듬기 보너스 200원 (보호자가 도우미를 끄면 없음)
 // - 한 주(월~일) 7일을 모두 씀: 주간 보너스 500원 (일요일에 7일이 채워질 때 한 번)
 // - 같은 날 추가 일기: 용돈 없음
 // - 보호자는 주거나 뺄 수 없음 (이 파일에 그런 함수가 없음. 보호자 화면은 영수증을 <줬어요>로 표시할 수만 있음)
@@ -74,7 +74,7 @@ export function earnDiary(state, day, diaryId) {
   return { amount: e.amount, pending: e.pending };
 }
 
-// 다듬기 보너스 (제안을 따라 실제로 고쳤을 때만 부르기)
+// 다듬기 보너스 (1회차 제안을 모두 고쳤을 때만 부르기. 판정은 feedback.js의 bonusReady)
 export function earnPolish(state, day, diaryId) {
   if (!canEarnPolish(state, day)) return { amount: 0, pending: false };
   const e = add(state, { day, type: 'polish', amount: AMOUNT.polish, diaryId });

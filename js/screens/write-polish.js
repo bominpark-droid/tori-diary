@@ -1,7 +1,10 @@
 // ⑤ 다듬기 도우미 (아이가 눌러야 시작). docs/DESIGN.md 4.3 ⑤, 5절
 // 한 번에 제안 하나만 보여 줍니다.
-// 1회차: 더하기형 하나 → 두 번째 종류(표기, 점 찍기, 나누기, 잇기) 하나. 두 번째는 바뀐 글로 다시 찾습니다.
-// 1회차에서 처음 고치면 다듬기 보너스(하루 한 번). <한 번 더>(2회차)는 토리 반응만 있고 용돈은 없습니다.
+// 1회차: 토리가 세 가지쯤 고릅니다(맥락, 마음, 디테일에서 하나씩. 모자라면 표기, 점 찍기, 나누기, 잇기).
+//   앞 제안을 고치면 글이 바뀌므로 제안은 차례가 올 때 지금 글에서 새로 찾습니다.
+// 1회차의 제안을 모두 고치면 다듬기 보너스(하루 한 번). 하나라도 <그대로 둘래>면 보너스는 없고,
+//   <이건 아닌 것 같아>는 그 제안을 다른 것으로 바꾸거나 빼므로 보너스에 영향이 없습니다(사용자 결정).
+// <한 번 더>(2회차)는 제안 하나, 토리 반응만 있고 용돈은 없습니다.
 // 보기를 고르든 자기 말로 쓰든 글이 바뀌면 <따라 고쳤다>로 봅니다(사용자 결정).
 
 import { h, clear, pick, seedOf, put } from '../util.js';
@@ -10,7 +13,8 @@ import { flowbar, bubble, withQuotes, toast, icon } from '../ui.js';
 import { toriNode, setMood } from '../tori.js';
 import { LINES, fill } from '../data/tori-lines.js';
 import {
-  pickSuggestion, pickRoundTwo, applyOption, applyOwn, previewOption, isChanged, ownReady,
+  pickSuggestion, pickRoundTwo, planRound, findSuggestion, bonusReady, PLAN_GROUPS,
+  applyOption, applyOwn, previewOption, isChanged, ownReady,
   reactionFor, afterChangeLine, diffWords, splitSentences,
 } from '../feedback.js';
 import { canEarnPolish, earnPolish } from '../rewards.js';
@@ -74,7 +78,8 @@ export function render(root, params, app) {
   const st = {
     text: d.text || '',
     round: 1,
-    family: 'add',
+    plan: [], // 1회차 제안 칸: { kind, status: 'todo' | 'changed' | 'kept' | 'dropped' }
+    at: -1, // 지금 보고 있는 칸
     sug: null,
     rejected: new Set(),
     shownKinds: [],
@@ -157,6 +162,10 @@ export function render(root, params, app) {
     paintText(sug);
     clear(area);
     const box = h('div', { class: 'stack-sm' });
+    const live = st.plan.filter((x) => x.status !== 'dropped');
+    if (st.round === 1 && live.length >= 2 && st.plan[st.at]) {
+      box.appendChild(h('p', { class: 'muted small plan-step' }, `제안 ${live.indexOf(st.plan[st.at]) + 1} / ${live.length}`));
+    }
     if (sug.kind === 'connect') box.appendChild(h('p', { class: 'muted small' }, LINES.connectHelp));
     if (sug.example) box.appendChild(h('p', { class: 'muted small' }, sug.example));
     for (const o of sug.options) box.appendChild(optionButton(sug, o));
@@ -231,62 +240,125 @@ export function render(root, params, app) {
     const old = st.text;
     st.text = next;
     log(how, true);
-    let reward = null;
-    if (st.round === 1 && bonusDay && !st.paidNow && canEarnPolish(store.state, today)) {
-      store.update((s) => { reward = earnPolish(s, today, d.id); });
-      if (reward && reward.amount) {
-        st.paidNow = reward.amount;
-        save((p) => { p.bonus = (p.bonus || 0) + reward.amount; });
-        music.sfx('coin');
-      }
-    }
-    speak('happy', [afterChangeLine(sug)], reward && reward.amount ? [LINES.bonusGot] : null);
+    if (st.round === 1 && st.plan[st.at]) st.plan[st.at].status = 'changed';
+    const reward = payIfReady();
+    speak('happy', [afterChangeLine(sug)], reward ? [LINES.bonusGot] : null);
     paintText(null);
     clear(area);
     put(area, 
+      reward ? bonusCard(reward) : null,
       compareView(old, next),
-      reward && reward.amount ? rewardCard({ title: '다듬기 보너스', amount: reward.amount, note: reward.pending ? '월요일에 한꺼번에 들어와.' : null }) : null,
       h('button', { class: 'btn btn-primary btn-big', type: 'button', on: { click: () => advance() } }, '다음', icon('next')));
   }
 
+  // 1회차 제안을 모두 고쳤으면 다듬기 보너스를 한 번 줍니다.
+  function payIfReady() {
+    if (st.round !== 1 || !bonusDay || st.paidNow || !bonusReady(st.plan) || !canEarnPolish(store.state, today)) return null;
+    let reward = null;
+    store.update((s) => { reward = earnPolish(s, today, d.id); });
+    if (!reward || !reward.amount) return null;
+    st.paidNow = reward.amount;
+    save((p) => { p.bonus = (p.bonus || 0) + reward.amount; });
+    music.sfx('coin');
+    return reward;
+  }
+
+  const bonusCard = (reward) => rewardCard({ title: '다듬기 보너스', amount: reward.amount, note: reward.pending ? '월요일에 한꺼번에 들어와.' : null });
+
   function keep() {
     log('keep', false);
+    if (st.round === 1 && st.plan[st.at]) st.plan[st.at].status = 'kept';
     advance(pick(LINES.kept, seed + st.shownKinds.length));
   }
 
   function reject(sug) {
     st.rejected.add(sug.id);
+    st.rejected.add(sug.kind);
     log('reject', false);
+    if (st.round === 1 && st.plan[st.at]) {
+      // 넘긴 제안은 같은 묶음의 다른 제안으로 바꿔 끼우고, 없으면 칸을 닫습니다(보너스에는 영향 없음).
+      const slot = st.plan[st.at];
+      const alt = altFor(sug.kind);
+      if (alt) {
+        slot.kind = alt.kind;
+        return show(alt, pick(LINES.rejected, seed + st.rejected.size));
+      }
+      slot.status = 'dropped';
+      return advance(LINES.noMore);
+    }
     const ex = new Set(st.rejected);
     if (st.spellShown) ex.add('spell');
-    if (st.round === 2) {
-      ex.add('add-detail');
-      st.shownKinds.forEach((k) => ex.add(k));
-    }
+    ex.add('add-detail');
+    st.shownKinds.forEach((k) => ex.add(k));
     const next = pickSuggestion(st.text, sug.family, opts(), ex);
     if (next) return show(next, pick(LINES.rejected, seed + st.rejected.size));
     advance(LINES.noMore);
   }
 
+  // ---------- 1회차: 제안 칸 돌기 ----------
+  // 이미 칸에 있거나 아이가 넘긴 종류는 다시 내지 않습니다.
+  const taken = () => {
+    const ex = new Set(st.rejected);
+    st.plan.forEach((x) => ex.add(x.kind));
+    if (st.spellShown) ex.add('spell');
+    return ex;
+  };
+  // 같은 묶음(맥락, 마음, 디테일)에서 먼저, 없으면 아무 묶음에서 하나
+  function altFor(kind) {
+    const ex = taken();
+    for (const k of PLAN_GROUPS.find((g) => g.includes(kind)) || []) {
+      const s = findSuggestion(st.text, k, opts(), ex);
+      if (s) return s;
+    }
+    return planRound(st.text, opts(), { size: 1, exclude: ex })[0] || null;
+  }
+
+  function startPlan() {
+    st.plan = planRound(st.text, opts()).map((s) => ({ kind: s.kind, status: 'todo' }));
+    st.at = -1;
+    const n = st.plan.length;
+    nextSlot(n >= 2 ? fill(LINES.planLead, { count: ['', '두', '세'][n - 1] }) : null);
+  }
+
+  // 차례가 온 칸의 제안을 지금 글에서 찾습니다. 앞에서 이미 해결됐으면 다른 제안으로 바꾸고, 그것도 없으면 칸을 닫습니다.
+  function nextSlot(lead) {
+    for (let i = st.at + 1; i < st.plan.length; i++) {
+      const slot = st.plan[i];
+      if (slot.status !== 'todo') continue;
+      let sug = findSuggestion(st.text, slot.kind, opts(), st.rejected);
+      if (!sug) {
+        sug = altFor(slot.kind);
+        if (sug) slot.kind = sug.kind;
+      }
+      if (!sug) {
+        slot.status = 'dropped';
+        continue;
+      }
+      st.at = i;
+      return show(sug, lead);
+    }
+    planEnd(lead);
+  }
+
+  function planEnd(lead) {
+    const reward = payIfReady();
+    const live = st.plan.filter((x) => x.status !== 'dropped');
+    const all = live.length >= 2 && live.every((x) => x.status === 'changed');
+    roundEnd(all ? LINES.planAllDone : lead, reward);
+  }
+
   // 다음 제안으로, 없으면 회차 끝
   function advance(lead) {
-    if (st.round === 1 && st.family === 'add') {
-      st.family = 'second';
-      const ex = new Set(st.rejected);
-      if (st.spellShown) ex.add('spell');
-      const next = pickSuggestion(st.text, 'second', opts(), ex);
-      if (next) return show(next, lead);
-    }
-    if (st.round === 1) return roundEnd(lead);
+    if (st.round === 1) return nextSlot(lead);
     return end(lead);
   }
 
-  function roundEnd(lead) {
+  function roundEnd(lead, reward) {
     save();
-    speak('smile', lead ? [lead] : null, [LINES.againAsk]);
+    speak('smile', lead ? [lead] : null, reward ? [LINES.bonusGot] : null, [LINES.againAsk]);
     paintText(null);
     clear(area);
-    put(area, h('div', { class: 'btn-row' },
+    put(area, reward ? bonusCard(reward) : null, h('div', { class: 'btn-row' },
       h('button', { class: 'btn btn-primary btn-big', type: 'button', on: { click: roundTwo } }, '한 번 더'),
       h('button', { class: 'btn btn-soft btn-big', type: 'button', on: { click: () => end() } }, '여기까지')));
   }
@@ -317,11 +389,7 @@ export function render(root, params, app) {
     speak('read', [reactionFor(st.text, { seed, isPhoto })], [LINES.polishOpen]);
     paintText(null);
     clear(area);
-    put(area, h('button', { class: 'btn btn-primary btn-big', type: 'button', on: { click: () => {
-      const first = pickSuggestion(st.text, 'add', opts(), new Set());
-      if (first) show(first);
-      else advance();
-    } } }, '좋아, 들려줘'));
+    put(area, h('button', { class: 'btn btn-primary btn-big', type: 'button', on: { click: startPlan } }, '좋아, 들려줘'));
   };
 
   const stop = () => {
